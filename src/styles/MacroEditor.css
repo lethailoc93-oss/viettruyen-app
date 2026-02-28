@@ -1,0 +1,174 @@
+/* ================================================
+   Macro Editor — manage custom Quick Actions
+   ================================================ */
+
+.macro-editor-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.macro-editor {
+    background: var(--glass-bg, rgba(25, 25, 45, 0.95));
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-lg, 12px);
+    width: 90%;
+    max-width: 480px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.macro-editor-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #e0e0f0);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.macro-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.macro-form input,
+.macro-form textarea {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--color-text-primary);
+    outline: none;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.macro-form textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.macro-form input:focus,
+.macro-form textarea:focus {
+    border-color: rgba(120, 200, 255, 0.4);
+}
+
+.macro-form-row {
+    display: flex;
+    gap: 8px;
+}
+
+.macro-form-row input {
+    flex: 1;
+}
+
+.macro-form label {
+    font-size: 0.7rem;
+    color: var(--color-text-secondary, #a0a0b8);
+    margin-bottom: 2px;
+}
+
+.macro-form-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.macro-btn {
+    padding: 5px 14px;
+    border: 1px solid rgba(120, 200, 255, 0.25);
+    border-radius: 16px;
+    background: rgba(120, 200, 255, 0.08);
+    color: #78c8ff;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.macro-btn:hover {
+    background: rgba(120, 200, 255, 0.18);
+}
+
+.macro-btn.danger {
+    border-color: rgba(239, 83, 80, 0.25);
+    background: rgba(239, 83, 80, 0.08);
+    color: #ef5350;
+}
+
+.macro-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.macro-list-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+}
+
+.macro-list-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.macro-list-item-name {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--color-text-primary, #e0e0f0);
+}
+
+.macro-list-item-prompt {
+    font-size: 0.65rem;
+    color: var(--color-text-tertiary, #707090);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.macro-list-item-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.macro-icon-btn {
+    padding: 3px 6px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+}
+
+.macro-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.macro-empty {
+    font-size: 0.72rem;
+    color: var(--color-text-tertiary);
+    text-align: center;
+    padding: 16px 0;
+    font-style: italic;
+}

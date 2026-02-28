@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SangTacViet Bypasser</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      width: 280px;
+      padding: 16px;
+      margin: 0;
+      color: #333;
+      background: #f8f9fa;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .status.connected {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .status.disconnected {
+      background: #ffebee;
+      color: #c62828;
+    }
+    p {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.4;
+    }
+    .footer {
+      margin-top: 16px;
+      font-size: 11px;
+      color: #999;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎭 VietTruyen Bypasser</h2>
+  <div id="status-container">
+    <span class="status disconnected" id="status-badge">Disconnected</span>
+  </div>
+  <p>Extension này giúp lấy mã nguồn HTML từ các trang web (sáng tác việt) vượt qua Captcha/Cloudflare bằng cách mô phỏng trình duyệt thật qua WebSocket Local Relay.</p>
+  <p><strong>Yêu cầu:</strong> Phải chạy ứng dụng Local Server (ws-relay-server.js) ở port 8080.</p>
+  <div class="footer">v1.0 - extension_worker</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: vtbc-server
+    env: node
+    plan: free
+    region: singapore # Chọn Sing cho gần VN ping cho lẹ
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: ALLOWED_ORIGIN
+        value: "*" # Cho phép tất cả các domain frontend (Netlify/Vercel) gọi tới backend này.
+    rootDir: server # Trỏ Render vào thư mục server/ thay vì thư mục gốc React

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Đăng nhập Google - AI Story Writer</title>
+    <style>
+        body {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .message {
+            text-align: center;
+            padding: 2rem;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(139, 92, 246, 0.2);
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="message">
+        <div class="spinner"></div>
+        <p>Đang xử lý đăng nhập...</p>
+    </div>
+    <script>
+        // Parse the hash fragment from OAuth redirect
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        
+        const accessToken = params.get('access_token');
+        const expiresIn = params.get('expires_in');
+        const error = params.get('error');
+
+        if (window.opener) {
+            if (error) {
+                window.opener.postMessage({
+                    type: 'GOOGLE_OAUTH_CALLBACK',
+                    error: error === 'access_denied' 
+                        ? 'Bạn đã từ chối quyền truy cập.' 
+                        : `Lỗi đăng nhập: ${error}`
+                }, window.location.origin);
+            } else if (accessToken) {
+                window.opener.postMessage({
+                    type: 'GOOGLE_OAUTH_CALLBACK',
+                    access_token: accessToken,
+                    expires_in: expiresIn || '3600'
+                }, window.location.origin);
+            } else {
+                window.opener.postMessage({
+                    type: 'GOOGLE_OAUTH_CALLBACK',
+                    error: 'Không nhận được token từ Google.'
+                }, window.location.origin);
+            }
+        }
+
+        // Close popup after a short delay
+        setTimeout(() => window.close(), 1000);
+    </script>
+</body>
+</html>
