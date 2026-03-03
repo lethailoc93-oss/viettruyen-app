@@ -27,3 +27,4 @@ dist-ssr
 server/node_modules
 __proxy_ref
 push_error.txt
+.netlify
