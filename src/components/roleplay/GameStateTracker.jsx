@@ -1,9 +1,9 @@
 // ================================================
 // GameStateTracker — Tracking AI Variable Updates
 // ================================================
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Heart, Shield, Coins, Star, Activity, Settings2, BarChart2, Package } from 'lucide-react';
+import { Swords, Heart, Shield, Coins, Star, Activity, Settings2, BarChart2, Package, RotateCcw } from 'lucide-react';
 
 export default function GameStateTracker({ story, currentChatIdx, messages }) {
     const [gameState, setGameState] = useState(() => {
@@ -12,6 +12,8 @@ export default function GameStateTracker({ story, currentChatIdx, messages }) {
     });
 
     const [collapsed, setCollapsed] = useState(false);
+    // Track which message IDs have been parsed to avoid re-parsing and state mutation
+    const parsedMsgIds = useRef(new Set());
 
     // Save state when it changes
     useEffect(() => {
@@ -21,44 +23,46 @@ export default function GameStateTracker({ story, currentChatIdx, messages }) {
     }, [gameState, story?.id]);
 
     // Parse messages for variable updates
+    // FIX: Removed gameState from deps to prevent infinite loop.
+    // FIX: Use parsedMsgIds ref instead of mutating message objects.
     useEffect(() => {
-        let newState = { ...gameState };
-        let stateChanged = false;
-
-        // Only parse the latest char message if it hasn't been parsed
         const latestMsg = messages[messages.length - 1];
+        if (!latestMsg || latestMsg.role !== 'char') return;
 
-        if (latestMsg && latestMsg.role === 'char' && !latestMsg._parsedState) {
-            const matches = parseVariableUpdates(latestMsg.content || '');
+        // Use message id (or fallback to index) to track parsed state
+        const msgKey = latestMsg.id || `idx_${messages.length - 1}`;
+        if (parsedMsgIds.current.has(msgKey)) return;
 
-            if (matches.length > 0) {
-                matches.forEach(({ variable, change, isAbsolute }) => {
-                    const varKey = variable.trim();
-                    const currentVal = parseFloat(newState[varKey] || 0);
-                    const numChange = parseFloat(change);
-
-                    if (!isNaN(numChange)) {
-                        if (isAbsolute) {
-                            newState[varKey] = numChange;
-                        } else {
-                            newState[varKey] = currentVal + numChange;
-                        }
-                        stateChanged = true;
-                    } else if (typeof change === 'string' && isAbsolute) {
-                        newState[varKey] = change;
-                        stateChanged = true;
-                    }
-                });
-            }
-
-            // Mark as parsed to avoid re-parsing on every re-render
-            latestMsg._parsedState = true;
+        const matches = parseVariableUpdates(latestMsg.content || '');
+        if (matches.length === 0) {
+            parsedMsgIds.current.add(msgKey);
+            return;
         }
 
-        if (stateChanged) {
-            setGameState(newState);
-        }
-    }, [messages, gameState]);
+        // Use functional updater so we don't need gameState in deps
+        setGameState(prev => {
+            const newState = { ...prev };
+            let stateChanged = false;
+
+            matches.forEach(({ variable, change, isAbsolute }) => {
+                const varKey = variable.trim();
+                const currentVal = parseFloat(newState[varKey] || 0);
+                const numChange = parseFloat(change);
+
+                if (!isNaN(numChange)) {
+                    newState[varKey] = isAbsolute ? numChange : currentVal + numChange;
+                    stateChanged = true;
+                } else if (typeof change === 'string' && isAbsolute) {
+                    newState[varKey] = change;
+                    stateChanged = true;
+                }
+            });
+
+            return stateChanged ? newState : prev;
+        });
+
+        parsedMsgIds.current.add(msgKey);
+    }, [messages]);
 
     /**
      * Parses variable update tags from text.

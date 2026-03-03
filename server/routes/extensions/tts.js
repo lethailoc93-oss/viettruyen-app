@@ -1,19 +1,32 @@
 import express from 'express';
 import axios from 'axios';
+import { z } from 'zod';
+import { validate } from '../../middleware/validation.js';
 
 const router = express.Router();
+
+// ═══════════════════════════════════════════════════
+// Schema
+// ═══════════════════════════════════════════════════
+
+const TTSSchema = z.object({
+    text: z.string().min(1, 'Text không được để trống'),
+    voiceId: z.string().optional(),
+    apiKey: z.string().optional(),
+    provider: z.enum(['elevenlabs']).optional().default('elevenlabs'),
+});
+
+// ═══════════════════════════════════════════════════
+// Route
+// ═══════════════════════════════════════════════════
 
 /**
  * Extension: Text-to-Speech (TTS)
  * Nhận text từ Frontend, đẩy qua các dịch vụ TTS (ElevenLabs, FPT AI) và trả về Audio
  */
-router.post('/', async (req, res) => {
+router.post('/', validate(TTSSchema), async (req, res) => {
     try {
-        const { text, voiceId, apiKey, provider = 'elevenlabs' } = req.body;
-
-        if (!text) {
-            return res.status(400).json({ error: 'Missing text for TTS' });
-        }
+        const { text, voiceId, apiKey, provider } = req.body;
 
         console.log(`[EXT: TTS] Requesting speech for: "${text.substring(0, 30)}..." via ${provider}`);
 

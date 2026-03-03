@@ -238,6 +238,9 @@ export function convertWorldInfoToSettings(worldInfo) {
                 entry.comment && `Comment: ${entry.comment}`,
                 entry.position !== undefined && `Position: ${entry.position === 0 ? 'before_char' : 'after_char'}`,
             ].filter(Boolean).join('\n'),
+            priority: entry.priority !== undefined ? entry.priority : (entry.priority ?? 10),
+            insertionOrder: entry.insertion_order ?? entry.order ?? 100,
+            strategy: entry.constant ? 'Constant' : 'Normal',
         });
     }
 

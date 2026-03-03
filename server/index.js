@@ -3,7 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import proxyRouter from './routes/proxy.js';
 import imageGenRouter from './routes/extensions/imageGen.js';
+import cloudImageRouter from './routes/extensions/cloudImage.js';
 import ttsRouter from './routes/extensions/tts.js';
+import githubRouter from './routes/extensions/github.js';
 
 dotenv.config();
 
@@ -35,7 +37,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Gắn Routers
 app.use('/api/proxy', proxyRouter);
 app.use('/api/extensions/image', imageGenRouter);
+app.use('/api/extensions/cloud-image', cloudImageRouter);
 app.use('/api/extensions/tts', ttsRouter);
+app.use('/api/extensions/github', githubRouter);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -46,7 +50,8 @@ app.listen(PORT, () => {
     console.log(`===============================================`);
     console.log(`🚀 VTBC Backend Server started on port ${PORT}`);
     console.log(`📡 CORS Proxy endpoint: http://localhost:${PORT}/api/proxy/chat`);
-    console.log(`🎨 Image Extension:     http://localhost:${PORT}/api/extensions/image`);
+    console.log(`🎨 Local Image Ext:     http://localhost:${PORT}/api/extensions/image`);
+    console.log(`☁️  Cloud Image Ext:     http://localhost:${PORT}/api/extensions/cloud-image`);
     console.log(`🔊 TTS Extension:       http://localhost:${PORT}/api/extensions/tts`);
     console.log(`===============================================`);
 });

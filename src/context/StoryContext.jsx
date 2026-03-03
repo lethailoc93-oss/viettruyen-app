@@ -131,7 +131,8 @@ export const StoryProvider = ({ children }) => {
             plannedChapters = 0,
             maxOutputTokens = 8192,
             synopsis = '',
-            allowNSFW = false
+            allowNSFW = false,
+            type = 'story'
         } = storyData;
 
         // Construct protagonist description for backward compatibility & summary
@@ -139,6 +140,7 @@ export const StoryProvider = ({ children }) => {
 
         const newStory = {
             id: Utils.generateId(),
+            type, // 'story' | 'roleplay'
             title,
             genres: genres.length > 0 ? genres : [genre || 'other'], // Ensure genres array
             genre: genres.length > 0 ? genres[0] : (genre || 'other'), // Keep single genre for compatibility
@@ -337,6 +339,7 @@ export const StoryProvider = ({ children }) => {
 
         // ---- Build the final imported object with defaults ----
         const imported = {
+            type: 'story', // default, can be overridden by d.type
             title: 'Truyện chưa đặt tên',
             genre: 'other',
             genres: [],

@@ -46,7 +46,8 @@ export default React.memo(function ChapterDetail({ chapterId, onBack, onNavigate
         setEditingItemType,
         plotProgressOps,
         branchOps,
-        updateStoryField
+        updateStoryField,
+        foreshadowingOps,
     } = useStoryDispatch();
     const { getNextKey, isKeySet, selectedModel } = useApiKey();
     const { getDirective } = useDirectives();
@@ -144,7 +145,7 @@ export default React.memo(function ChapterDetail({ chapterId, onBack, onNavigate
         getDirective, chapterOps, addCharacter, updateCharacter, settingOps, timelineOps,
         abilityOps, itemOps, organizationOps, updateCurrentInfo,
         extractSources, setChapterSources, setActiveTab,
-        plotProgressOps,
+        plotProgressOps, foreshadowingOps,
     });
     const {
         aiLoading, aiResponse, setAiResponse,

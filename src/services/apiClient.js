@@ -4,6 +4,8 @@
 // ================================================
 
 import { wsRelay } from './wsRelayService';
+import { validateWithWarning } from '../utils/zodHelpers';
+import { ProxyConfigSchema, GenerationConfigSchema, WorkerConfigSchema } from '../schemas/apiSchemas';
 
 const ORBIT_API_URL = 'https://api.orbit-provider.com/v1/chat/completions';
 const API_TIMEOUT_MS = 90_000; // 90 second timeout per API call
@@ -13,8 +15,8 @@ const API_TIMEOUT_MS = 90_000; // 90 second timeout per API call
 // ═══════════════════════════════════════════════════
 
 // Lấy địa chỉ Backend từ file .env. Ví dụ trên Netlify sẽ set VITE_BACKEND_URL=https://vtbc-api.onrender.com/api/proxy/chat
-// Dưới máy ảo cục bộ thì fallback về cổng 3001
-const LOCAL_BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api/proxy/chat';
+// Dưới máy ảo cục bộ thì fallback về dev proxy middleware (tạo bởi Vite) hoặc cổng 3001
+const LOCAL_BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? '/api/cors-proxy' : 'http://localhost:3001/api/proxy/chat');
 
 /** 
  * Build the proxied fetch URL and body using the new Backend Server
@@ -81,21 +83,24 @@ export function setApiSafety(allowNSFW) {
 }
 
 export function setGenerationConfig(config) {
-    _generationConfig = { ..._generationConfig, ...config };
+    const validated = validateWithWarning('GenerationConfig', GenerationConfigSchema, config);
+    _generationConfig = { ..._generationConfig, ...validated };
     if (import.meta.env.DEV) console.log(`⚙️ Generation Config updated:`, _generationConfig);
 }
 
 export function setProxyConfig(provider, customBaseUrl) {
-    _proxyConfig = { provider: provider || 'gemini', customBaseUrl: customBaseUrl || '' };
+    const validated = validateWithWarning('ProxyConfig', ProxyConfigSchema, { provider, customBaseUrl });
+    _proxyConfig = { provider: validated.provider || 'gemini', customBaseUrl: validated.customBaseUrl || '' };
     if (import.meta.env.DEV) console.log(`🔌 API Router: provider=${_proxyConfig.provider}, baseUrl=${_proxyConfig.customBaseUrl || '(none)'}`);
 }
 
 export function setWorkerConfig(provider, baseUrl, apiKey, model) {
+    const validated = validateWithWarning('WorkerConfig', WorkerConfigSchema, { provider, baseUrl, apiKey, model });
     _workerConfig = {
-        provider: provider || 'disabled',
-        baseUrl: baseUrl || '',
-        apiKey: apiKey || '',
-        model: model || ''
+        provider: validated.provider || 'disabled',
+        baseUrl: validated.baseUrl || '',
+        apiKey: validated.apiKey || '',
+        model: validated.model || ''
     };
     if (import.meta.env.DEV) console.log(`🤖 Worker AI Configured: provider=${_workerConfig.provider}, url=${_workerConfig.baseUrl || '(none)'}, model=${_workerConfig.model}`);
 }
@@ -294,12 +299,6 @@ export async function callCustomAPI(baseUrl, apiKey, model, messages, maxTokens 
                 fetchUrl = proxy.url;
                 fetchBody = proxy.body;
                 fetchHeaders = { 'Content-Type': 'application/json' };
-            } else if (shouldUseDevProxy(url)) {
-                // Dev CORS proxy — route through Vite middleware
-                const proxy = buildDevProxyRequest(url, headers, body, false);
-                fetchUrl = proxy.url;
-                fetchBody = proxy.body;
-                fetchHeaders = { 'Content-Type': 'application/json' };
             }
 
             const response = await fetch(fetchUrl, {
@@ -377,12 +376,6 @@ export async function callCustomAPIStream(baseUrl, apiKey, model, messages, maxT
         fetchUrl = proxy.url;
         fetchBody = proxy.body;
         fetchHeaders = { 'Content-Type': 'application/json' };
-    } else if (shouldUseDevProxy(url)) {
-        // Dev CORS proxy — route through Vite middleware
-        const proxy = buildDevProxyRequest(url, headers, bodyObj, true);
-        fetchUrl = proxy.url;
-        fetchBody = proxy.body;
-        fetchHeaders = { 'Content-Type': 'application/json' };
     }
 
     const response = await fetch(fetchUrl, {
@@ -427,19 +420,31 @@ export function createTimeoutController(ms = API_TIMEOUT_MS, parentSignal = null
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), ms);
 
+    // FIX #11: Track abort listener for cleanup to prevent memory leak
+    let onParentAbort = null;
     if (parentSignal) {
         if (parentSignal.aborted) {
             controller.abort();
             clearTimeout(timeoutId);
         } else {
-            parentSignal.addEventListener('abort', () => {
+            onParentAbort = () => {
                 controller.abort();
                 clearTimeout(timeoutId);
-            });
+            };
+            parentSignal.addEventListener('abort', onParentAbort);
         }
     }
 
-    return { signal: controller.signal, clear: () => clearTimeout(timeoutId) };
+    return {
+        signal: controller.signal,
+        clear: () => {
+            clearTimeout(timeoutId);
+            // FIX #11: Remove event listener on cleanup
+            if (onParentAbort && parentSignal) {
+                parentSignal.removeEventListener('abort', onParentAbort);
+            }
+        }
+    };
 }
 
 // ═══════════════════════════════════════════════════
@@ -668,11 +673,8 @@ async function callGeminiDirectStream(apiKey, model, messages, maxTokens, onChun
         console.log('🌐 Gemini Stream: Google Search grounding enabled');
     }
 
-    if (googleModel.includes('pro') && _generationConfig.reasoningEffort && _generationConfig.reasoningEffort !== 'auto') {
-        body.generationConfig.thinkingConfig = {
-            thinkingBudget: _generationConfig.reasoningEffort === 'high' ? 4096 : 1024
-        }
-    }
+    // FIX #9: Removed duplicate thinkingConfig override — already handled by _applyGeminiExtras()
+
 
     const maxRetries = 3;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -749,6 +751,8 @@ async function callGeminiDirectStream(apiKey, model, messages, maxTokens, onChun
         if (options.useWebSearch && groundingMetadata) {
             return { text: fullText, groundingMetadata };
         }
+        // FIX #10: Clear timeout after successful streaming
+        timeout.clear();
         return fullText;
     }
 }

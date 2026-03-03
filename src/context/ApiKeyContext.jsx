@@ -23,7 +23,10 @@ const STORAGE_KEYS = {
     workerBaseUrl: 'ai_story_worker_base_url',
     workerApiKey: 'ai_story_worker_api_key',
     workerModel: 'ai_story_worker_model',
-    generationConfig: 'ai_story_generation_config'
+    generationConfig: 'ai_story_generation_config',
+    cloudImageProvider: 'ai_story_cloud_image_provider',
+    cloudImageApiKey: 'ai_story_cloud_image_api_key',
+    cloudImageModel: 'ai_story_cloud_image_model'
 };
 
 export const ApiKeyProvider = ({ children }) => {
@@ -38,6 +41,11 @@ export const ApiKeyProvider = ({ children }) => {
     const [workerBaseUrl, setWorkerBaseUrlState] = useState('');
     const [workerApiKey, setWorkerApiKeyState] = useState('');
     const [workerModel, setWorkerModelState] = useState('');
+
+    // Cloud Image States
+    const [cloudImageProvider, setCloudImageProviderState] = useState('openai'); // openai | together
+    const [cloudImageApiKey, setCloudImageApiKeyState] = useState('');
+    const [cloudImageModel, setCloudImageModelState] = useState('dall-e-3');
 
     const [generationConfig, setGenerationConfigState] = useState({
         temperature: 0.8,
@@ -100,6 +108,13 @@ export const ApiKeyProvider = ({ children }) => {
         if (savedWorkerApiKey) setWorkerApiKeyState(savedWorkerApiKey);
         const savedWorkerModel = localStorage.getItem(STORAGE_KEYS.workerModel);
         if (savedWorkerModel) setWorkerModelState(savedWorkerModel);
+
+        const savedCloudImageProvider = localStorage.getItem(STORAGE_KEYS.cloudImageProvider);
+        if (savedCloudImageProvider) setCloudImageProviderState(savedCloudImageProvider);
+        const savedCloudImageApiKey = localStorage.getItem(STORAGE_KEYS.cloudImageApiKey);
+        if (savedCloudImageApiKey) setCloudImageApiKeyState(savedCloudImageApiKey);
+        const savedCloudImageModel = localStorage.getItem(STORAGE_KEYS.cloudImageModel);
+        if (savedCloudImageModel) setCloudImageModelState(savedCloudImageModel);
 
         const savedGenerationConfig = localStorage.getItem(STORAGE_KEYS.generationConfig);
         if (savedGenerationConfig) {
@@ -218,6 +233,11 @@ export const ApiKeyProvider = ({ children }) => {
     const setWorkerApiKey = (k) => { setWorkerApiKeyState(k); localStorage.setItem(STORAGE_KEYS.workerApiKey, k); };
     const setWorkerModel = (m) => { setWorkerModelState(m); localStorage.setItem(STORAGE_KEYS.workerModel, m); };
 
+    // Setters for Cloud Image
+    const setCloudImageProvider = (p) => { setCloudImageProviderState(p); localStorage.setItem(STORAGE_KEYS.cloudImageProvider, p); };
+    const setCloudImageApiKey = (k) => { setCloudImageApiKeyState(k); localStorage.setItem(STORAGE_KEYS.cloudImageApiKey, k); };
+    const setCloudImageModel = (m) => { setCloudImageModelState(m); localStorage.setItem(STORAGE_KEYS.cloudImageModel, m); };
+
     // Set Generation Config
     const setGenerationConfig = (configUpdates) => {
         setGenerationConfigState(prev => {
@@ -252,6 +272,10 @@ export const ApiKeyProvider = ({ children }) => {
             workerBaseUrl, setWorkerBaseUrl,
             workerApiKey, setWorkerApiKey,
             workerModel, setWorkerModel,
+            // Cloud Image States
+            cloudImageProvider, setCloudImageProvider,
+            cloudImageApiKey, setCloudImageApiKey,
+            cloudImageModel, setCloudImageModel,
             // Generation Config
             generationConfig, setGenerationConfig,
             // Legacy compat

@@ -11,6 +11,34 @@ import { autoPrinciples } from '../writingPrinciples';
 import { EmbeddingService } from '../embeddingService';
 
 // ════════════════════════════════════════════
+// SCENE TYPE BOOST — Scene-aware RAG keywords
+// ════════════════════════════════════════════
+
+/**
+ * Return extra keywords to enrich the micro-RAG query based on the scene's
+ * type, emotion, and action fields. This makes embedding search prioritise
+ * entities that are most relevant to the current scene.
+ */
+function getSceneTypeBoost(scene) {
+    const type = (scene.type || '').toLowerCase();
+    const emotion = (scene.emotion || '').toLowerCase();
+    const action = (scene.action || '').toLowerCase();
+    const combined = `${type} ${emotion} ${action}`;
+
+    if (/combat|action|chiến|đấu|đánh|tấn công|trận/.test(combined))
+        return 'chiến đấu võ công kỹ năng vũ khí sức mạnh cảnh giới';
+    if (/romance|love|tình|lãng mạn|yêu|hẹn/.test(combined))
+        return 'quan hệ tình cảm nhân vật tính cách cảm xúc ngoại hình';
+    if (/world|setting|discover|khám phá|thế giới|bối cảnh/.test(combined))
+        return 'bối cảnh địa điểm thế giới tổ chức lịch sử văn hóa';
+    if (/mystery|suspense|bí ẩn|nghi|điều tra/.test(combined))
+        return 'manh mối bí ẩn sự kiện quá khứ âm mưu';
+    if (/politic|power|quyền lực|chính trị|phe phái/.test(combined))
+        return 'tổ chức phe phái quyền lực liên minh thù địch';
+    return '';
+}
+
+// ════════════════════════════════════════════
 // SCENE SPLITTING — Parse outline into scenes
 // ════════════════════════════════════════════
 
@@ -134,8 +162,12 @@ export async function writeScene(apiKey, scene, prevSceneTexts, ctx, options = {
     let sceneSpecificContext = '';
     try {
         if (apiKey && indexedDocuments && indexedDocuments.length > 0) {
-            const sceneQuery = [scene.characters, scene.setting, scene.goal, scene.action]
+            const baseQuery = [scene.characters, scene.setting, scene.goal, scene.action]
                 .filter(Boolean).join(' ').slice(0, 300);
+            // Boost query with scene-type-specific keywords for smarter retrieval
+            const sceneTypeBoost = getSceneTypeBoost(scene);
+            const sceneQuery = sceneTypeBoost ? `${baseQuery} ${sceneTypeBoost}` : baseQuery;
+            console.log(`🎯 Scene ${scene.id} RAG boost: "${sceneTypeBoost || 'none'}"`);
             if (sceneQuery.trim()) {
                 const sceneResults = await EmbeddingService.hybridSearch(
                     apiKey, sceneQuery, indexedDocuments,
@@ -467,9 +499,33 @@ export async function runWritingPipeline(apiKey, chapterBlueprint, ctx, options 
             signal,
         });
 
+        // WG-3: Multi-Draft for key scenes — generate 2nd draft for highlights
+        let finalSceneText = sceneText;
+        const isKeyScene = /highlight|climax|turning|cao trào|bước ngoặt|đỉnh điểm/i.test(
+            `${scene.type} ${scene.title} ${scene.goal}`
+        );
+        if (isKeyScene && !onStream && !signal?.aborted) {
+            try {
+                console.log(`🎭 Multi-Draft: Scene ${i + 1} is a KEY SCENE, generating alternate draft...`);
+                if (onProgress) onProgress('writing_scene', `🎭 Bước 2/3: Viết bản thay thế cảnh ${i + 1} (key scene)...`);
+                const altText = await writeScene(apiKey, scene, sceneTexts, ctx, {
+                    model, directive, signal,
+                });
+                // Pick the longer, more detailed draft
+                if (altText && altText.length > finalSceneText.length * 1.05) {
+                    finalSceneText = altText;
+                    console.log(`🎭 Multi-Draft: Alt draft selected (${altText.length} > ${sceneText.length} chars)`);
+                } else {
+                    console.log(`🎭 Multi-Draft: Original draft kept (${sceneText.length} >= ${altText?.length || 0} chars)`);
+                }
+            } catch (e) {
+                console.warn(`🎭 Multi-Draft failed for scene ${i + 1}:`, e.message);
+            }
+        }
+
         // If not streaming, sceneText is the result. If streaming, it's also there.
-        sceneTexts.push(sceneText);
-        console.log(`✍️ Pipeline Step 2: Scene ${i + 1} written (${sceneText.length} chars) ✓`);
+        sceneTexts.push(finalSceneText);
+        console.log(`✍️ Pipeline Step 2: Scene ${i + 1} written (${finalSceneText.length} chars) ✓`);
 
         // Small transition between scenes for streaming display
         if (onStream && i < scenes.length - 1) {

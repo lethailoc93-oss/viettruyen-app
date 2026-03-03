@@ -50,14 +50,16 @@ export default React.memo(function StorySidebar({ activeView, onNavigate, onGoHo
                 <div className="story-sidebar-title" onClick={() => onNavigate('home')} style={{ flex: 1, overflow: 'hidden' }}>
                     <span className="story-sidebar-title-text">{currentStory.title}</span>
                 </div>
-                <button
-                    className="btn-icon"
-                    onClick={() => onNavigate('roleplay')}
-                    title="Chơi Nhập Vai"
-                    style={{ color: 'hsl(270, 70%, 65%)' }}
-                >
-                    <Gamepad2 size={18} />
-                </button>
+                {currentStory.type === 'roleplay' && (
+                    <button
+                        className="btn-icon"
+                        onClick={() => onNavigate('roleplay')}
+                        title="Chơi Nhập Vai"
+                        style={{ color: 'hsl(270, 70%, 65%)' }}
+                    >
+                        <Gamepad2 size={18} />
+                    </button>
+                )}
             </div>
 
             {/* Top Tabs */}

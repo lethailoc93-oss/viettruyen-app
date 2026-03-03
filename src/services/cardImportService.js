@@ -6,6 +6,9 @@
 
 import { Utils } from '../utils/helpers';
 import { extractCharaFromPNG, convertCardToCharacter } from '../utils/importExportUtils';
+import { detectThemeFromStory } from './roleplayThemes';
+import { CharacterCardV2Schema, LorebookEntrySchema } from '../schemas/cardSchemas';
+import { validateWithWarning } from '../utils/zodHelpers';
 
 // ═══════════════════════════════════════════════════
 // Entry Type Constants
@@ -186,6 +189,8 @@ function cleanMacros(text) {
         .replace(/\{\{user\}\}/gi, '{{người chơi}}')
         .replace(/\{\{chat\}\}/gi, '{{cuộc hội thoại}}')
         .replace(/<START>/gi, '')
+        // 🔴 GIỮ LẠI: XML Tags (UpdateVariable, Setvar, StatusRender...)
+        // Để hệ thống regex / sandbox có thể tự xử lý sau này
         .trim();
 }
 
@@ -201,20 +206,45 @@ function cleanMacros(text) {
  * @returns {Object} Story object ready for importStory()
  */
 export function buildStoryFromCard(card, avatarUrl = null) {
-    const d = card.data || card;
-    const name = d.name || card.name || card.char_name || 'Card Import';
+    // === 0. Validate card structure ===
+    const validatedCard = validateWithWarning('CharacterCard', CharacterCardV2Schema, card);
+
+    const d = validatedCard.data || validatedCard;
+    const name = d.name || validatedCard.name || validatedCard.char_name || 'Card Import';
+    const personality = d.personality || validatedCard.personality || '';
+    const scenario = d.scenario || validatedCard.world_scenario || '';
 
     // === 1. Parse description sections ===
-    const descSections = splitDescriptionSections(d.description || card.description || '');
+    const descSections = splitDescriptionSections(d.description || validatedCard.description || '');
 
-    // === 2. Categorize character_book entries ===
-    const rawEntries = d.character_book?.entries || [];
+    // === 2. Categorize character_book entries (validate each) ===
+    const rawEntries = (d.character_book?.entries || []).map((entry, i) =>
+        validateWithWarning(`LorebookEntry[${i}]`, LorebookEntrySchema, entry)
+    );
     const groups = categorizeAllEntries(rawEntries);
 
     // === 3. Build database collections ===
 
     // --- Characters ---
     const characters = [];
+
+    // 🔴 FIX: Thêm Nhân vật chính (card protagonist) vào đầu tiên
+    // với personality + scenario được populate từ card
+    characters.push({
+        id: Utils.generateId(),
+        name: name,
+        description: cleanMacros(d.description || card.description || ''),
+        personality: cleanMacros(personality),
+        background: cleanMacros(scenario),
+        notes: `Nhập từ Card: ${name}`,
+        keywords: Array.isArray(d.tags) ? d.tags.join(', ') : '',
+        role: 'Nhân vật chính',
+        appearance: '',
+        avatar: null, // Sẽ được set bên ngoài từ avatarUrl
+        constant: true,
+        _enabled: true,
+        _isMainCharacter: true,
+    });
 
     // Entries phân loại là CHARACTER
     for (const entry of groups[ENTRY_TYPE.CHARACTER]) {
@@ -224,10 +254,22 @@ export function buildStoryFromCard(card, avatarUrl = null) {
             description: cleanMacros(entry.content || ''),
             notes: `[Nhập từ Card] ${entry.comment || ''}`,
             keywords: (entry.keys || []).join(', '),
+            keys: entry.keys || [],
+            secondary_keys: entry.secondary_keys || [],
+            selective: entry.selective || false,
+            constant: entry.constant || false,
+            match_whole_words: entry.match_whole_words || false,
             role: '',
             personality: '',
             background: '',
             appearance: '',
+            priority: entry.priority ?? 10,
+            insertionOrder: entry.insertion_order ?? entry.order ?? 100,
+            _priority: entry.priority ?? 10,
+            _insertion_order: entry.insertion_order ?? entry.order ?? 100,
+            _position: entry.position ?? 1,
+            _depth: entry.depth ?? 0,
+            _enabled: entry.enabled !== false,
         });
     }
 
@@ -272,8 +314,32 @@ export function buildStoryFromCard(card, avatarUrl = null) {
             description: cleanMacros(section.content),
             keywords: '',
             notes: '[Từ mô tả Card]',
+            constant: true, // Description sections luôn active
+            _enabled: true,
+            _position: 0, // before_char
+            priority: 50,
+            insertionOrder: 0,
+            _priority: 50,
+            _insertion_order: 0,
+            _depth: 0,
         });
     }
+
+    // Helper: trích xuất lorebook fields gốc từ entry
+    const extractLorebookFields = (entry) => ({
+        keys: entry.keys || [],
+        secondary_keys: entry.secondary_keys || [],
+        selective: entry.selective || false,
+        constant: entry.constant || false,
+        match_whole_words: entry.match_whole_words || false,
+        _enabled: entry.enabled !== false,
+        _position: entry.position ?? 1,
+        priority: entry.priority ?? 10,
+        insertionOrder: entry.insertion_order ?? entry.order ?? 100,
+        _priority: entry.priority ?? 10,
+        _insertion_order: entry.insertion_order ?? entry.order ?? 100,
+        _depth: entry.depth ?? 0,
+    });
 
     // Entries WORLD → settings
     for (const entry of groups[ENTRY_TYPE.WORLD]) {
@@ -283,6 +349,7 @@ export function buildStoryFromCard(card, avatarUrl = null) {
             description: cleanMacros(entry.content || ''),
             keywords: (entry.keys || []).join(', '),
             notes: `[Vùng miền] ${entry.enabled ? '✅' : '⬜'}`,
+            ...extractLorebookFields(entry),
         });
     }
 
@@ -294,6 +361,7 @@ export function buildStoryFromCard(card, avatarUrl = null) {
             description: cleanMacros(entry.content || ''),
             keywords: (entry.keys || []).join(', '),
             notes: `[Kiến thức] ${entry.enabled ? '✅' : '⬜'}`,
+            ...extractLorebookFields(entry),
         });
     }
 
@@ -309,8 +377,7 @@ export function buildStoryFromCard(card, avatarUrl = null) {
             keywords: (entry.keys || []).join(', '),
             notes: `[Hệ thống Game] Position: ${entry.position === 0 || entry.position === 'before_char' ? 'Trước' : 'Sau'} | ${entry.enabled ? '✅ Bật' : '⬜ Tắt'}`,
             _type: 'game_system',
-            _enabled: entry.enabled !== false,
-            _position: entry.position,
+            ...extractLorebookFields(entry),
         });
     }
 
@@ -323,8 +390,7 @@ export function buildStoryFromCard(card, avatarUrl = null) {
             keywords: (entry.keys || []).join(', '),
             notes: `[Trạng thái] ${entry.enabled ? '✅ Bật' : '⬜ Tắt'}`,
             _type: 'status_bar',
-            _enabled: entry.enabled !== false,
-            _position: entry.position,
+            ...extractLorebookFields(entry),
         });
     }
 
@@ -337,8 +403,7 @@ export function buildStoryFromCard(card, avatarUrl = null) {
             keywords: (entry.keys || []).join(', '),
             notes: `[Controller/Script] ⚠️ Chứa code xử lý — lưu nguyên để tham khảo`,
             _type: 'controller',
-            _enabled: entry.enabled !== false,
-            _position: entry.position,
+            ...extractLorebookFields(entry),
         });
     }
 
@@ -351,8 +416,7 @@ export function buildStoryFromCard(card, avatarUrl = null) {
             keywords: (entry.keys || []).join(', '),
             notes: `[Hệ thống biến số] ⚠️ Chứa logic cập nhật biến — lưu nguyên để tham khảo`,
             _type: 'variable',
-            _enabled: entry.enabled !== false,
-            _position: entry.position,
+            ...extractLorebookFields(entry),
         });
     }
 
@@ -365,7 +429,7 @@ export function buildStoryFromCard(card, avatarUrl = null) {
             keywords: (entry.keys || []).join(', '),
             notes: `[Quy tắc tương tác]`,
             _type: 'interaction',
-            _enabled: entry.enabled !== false,
+            ...extractLorebookFields(entry),
         });
     }
 
@@ -378,12 +442,15 @@ export function buildStoryFromCard(card, avatarUrl = null) {
             keywords: (entry.keys || []).join(', '),
             notes: `[DLC/Tùy chọn] ⬜ Tắt mặc định — bật khi cần`,
             _type: 'optional',
-            _enabled: false,
+            ...extractLorebookFields(entry),
+            _enabled: false, // Override: tắt mặc định
         });
     }
 
     // --- Regex Scripts ---
-    const regexScripts = (card.regex_scripts || []).map((r, i) => ({
+    // CCv3 stores regex_scripts in data.extensions.regex_scripts
+    const rawRegexScripts = card.regex_scripts || d.extensions?.regex_scripts || [];
+    const regexScripts = rawRegexScripts.map((r, i) => ({
         id: Utils.generateId(),
         name: r.scriptName || `Regex ${i + 1}`,
         findRegex: r.findRegex || '',
@@ -401,6 +468,13 @@ export function buildStoryFromCard(card, avatarUrl = null) {
     // --- Build first chapter content ---
     const firstMes = cleanMacros(d.first_mes || card.first_mes || '');
 
+    // --- Alternate greetings ---
+    const alternateGreetings = (d.alternate_greetings || []).map((g, i) => ({
+        id: Utils.generateId(),
+        name: `Kịch bản #${i + 2}`,
+        content: cleanMacros(g),
+    }));
+
     // --- References (message examples) ---
     const references = [];
     const mesExample = d.mes_example || card.mes_example || '';
@@ -413,9 +487,19 @@ export function buildStoryFromCard(card, avatarUrl = null) {
     }
 
     // --- System prompt / Post-history ---
-    const systemPrompt = cleanMacros(d.system_prompt || '');
-    const postHistory = cleanMacros(d.post_history_instructions || '');
+    // Mặc định giống SillyTavern nếu card không có sẵn
+    const defaultSystemPrompt = `Viết đoạn phản hồi tiếp theo của {{char}} trong cuộc hội thoại nhập vai hư cấu giữa {{char}} và {{user}}.
+Chỉ viết 1 đoạn phản hồi duy nhất theo góc nhìn thứ ba, đặt các hành động trong *dấu sao* và lời nói trong "dấu ngoặc kép".
+Luôn chủ động, sáng tạo, thúc đẩy cốt truyện và cuộc trò chuyện tiến lên phía trước.
+Luôn giữ đúng thiết lập tính cách (in-character) và tránh lặp lại hành động/lời nói của {{user}}.`;
+
+    const defaultPostHistory = `[System Note: Hãy đóng vai {{char}} và tiếp tục câu chuyện một cách tự nhiên. Tập trung vào cử chỉ, biểu cảm, tâm lý nhân vật và bám sát vào tính cách đã thiết lập.]`;
+
+    const systemPrompt = cleanMacros(d.system_prompt || defaultSystemPrompt);
+    const postHistory = cleanMacros(d.post_history_instructions || defaultPostHistory);
     const creatorNotes = cleanMacros(d.creator_notes || d.creatorcomment || card.creatorcomment || '');
+    const creator = d.creator || '';
+    const characterVersion = d.character_version || '';
 
     // --- Depth prompt ---
     const depthPrompt = d.extensions?.depth_prompt || null;
@@ -431,6 +515,10 @@ export function buildStoryFromCard(card, avatarUrl = null) {
         description: descSections.length > 0
             ? descSections.map(s => `【${s.name}】\n${s.content}`).join('\n\n').substring(0, 2000)
             : (d.description || '').substring(0, 2000),
+
+        // 🔴 FIX: Import personality + scenario (trước đây bị thiếu)
+        personality: cleanMacros(personality),
+        scenario: cleanMacros(scenario),
 
         // World fields — extract from description sections if possible
         worldHistory: descSections.find(s =>
@@ -454,11 +542,28 @@ export function buildStoryFromCard(card, avatarUrl = null) {
         regexScripts: regexScripts,
         worldInfoName: worldName,
 
+        // 🔴 FIX: Import alternate_greetings
+        alternateGreetings: alternateGreetings,
+
+        // 🟡 FIX: Import creator + character_version
+        creator: creator,
+        characterVersion: characterVersion,
+
         // Flags
         allowNSFW: true,
 
         // Cover image
         coverImage: avatarUrl || null,
+
+        // Theme hint for roleplay UI (auto = tự phát hiện từ tags/description)
+        rpTheme: 'auto',
+
+        // Character book config (top-level)
+        _characterBookConfig: {
+            scanDepth: d.character_book?.scan_depth ?? 10,
+            tokenBudget: d.character_book?.token_budget ?? 2048,
+            recursiveScanning: d.character_book?.recursive_scanning ?? false,
+        },
 
         // Database
         database: {
@@ -502,10 +607,18 @@ export function buildStoryFromCard(card, avatarUrl = null) {
                 optional: groups[ENTRY_TYPE.OPTIONAL].length,
             },
             regexScriptsCount: regexScripts.length,
+            alternateGreetingsCount: alternateGreetings.length,
+            hasPersonality: !!personality,
+            hasScenario: !!scenario,
             hasDepthPrompt: !!depthPrompt?.prompt,
             importedAt: new Date().toISOString(),
         },
     };
+
+    // Set avatar trên nhân vật chính
+    if (avatarUrl && story.database.characters.length > 0) {
+        story.database.characters[0].avatar = avatarUrl;
+    }
 
     return story;
 }
@@ -532,9 +645,10 @@ export async function importCardAsStory(file) {
         card = await extractCharaFromPNG(file);
         avatarUrl = URL.createObjectURL(file);
     } else {
-        // Parse JSON
+        // Parse JSON + validate
         const text = await file.text();
         card = JSON.parse(text);
+        card = validateWithWarning('CardJSON', CharacterCardV2Schema, card);
     }
 
     // Handle V2/V3 format detection

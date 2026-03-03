@@ -28,6 +28,7 @@ import StoryRules from './components/outlines/StoryRules';
 import ToastContainer from './components/modals/Toast';
 import ErrorBoundary from './components/layout/ErrorBoundary';
 import RoleplayPage from './components/roleplay/RoleplayPage';
+import RoleplayHome from './components/roleplay/RoleplayHome';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, Maximize, Minimize } from 'lucide-react';
 import './styles/zenMode.css';
@@ -138,27 +139,44 @@ function EditorLayout() {
                         style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}
                     >
                         <Routes location={location}>
-                            <Route path="/" element={<StoryHome onNavigate={handleNavigate} />} />
-                            <Route path="/outlines" element={<OutlinePage onNavigate={handleNavigate} />} />
-                            <Route path="/toc" element={<TableOfContents onSelectChapter={handleNavigateChapter} onNavigate={handleNavigate} />} />
-                            <Route path="/chapter/:chapterId" element={<ChapterDetailWrapper onNavigate={handleNavigate} />} />
-                            <Route path="/scene-outline" element={<SceneOutline onNavigate={handleNavigate} />} />
-                            <Route path="/characters" element={<CharacterTab onNavigate={handleNavigate} />} />
-                            <Route path="/settings" element={<SettingTab onNavigate={handleNavigate} />} />
-                            <Route path="/abilities" element={<AbilityTab />} />
-                            <Route path="/items" element={<ItemTab />} />
-                            <Route path="/organizations" element={<OrganizationTab />} />
-                            <Route path="/quests" element={<QuestTab />} />
-                            <Route path="/timeline" element={<TimelineTab onNavigate={handleNavigate} />} />
-                            <Route path="/plots" element={<PlotTab onNavigate={handleNavigate} />} />
-                            <Route path="/references" element={<ReferencePanel onNavigate={handleNavigate} />} />
-                            <Route path="/meta-rules" element={<MetaRulesTab />} />
-                            <Route path="/worldbook" element={<WorldbookTab onNavigate={handleNavigate} />} />
-                            <Route path="/checker" element={<ConsistencyChecker onNavigate={handleNavigate} />} />
-                            <Route path="/story-rules" element={<StoryRules />} />
-                            <Route path="/auto" element={<AutoWorkflowPanel />} />
-                            <Route path="/research" element={<ResearchPanel />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
+                            {currentStory?.type === 'roleplay' ? (
+                                /* Roleplay story routes */
+                                <>
+                                    <Route path="/" element={<RoleplayHome onNavigate={handleNavigate} />} />
+                                    <Route path="/characters" element={<CharacterTab onNavigate={handleNavigate} />} />
+                                    <Route path="/settings" element={<SettingTab onNavigate={handleNavigate} />} />
+                                    <Route path="/meta-rules" element={<MetaRulesTab />} />
+                                    <Route path="/worldbook" element={<WorldbookTab onNavigate={handleNavigate} />} />
+                                    <Route path="/references" element={<ReferencePanel onNavigate={handleNavigate} />} />
+                                    <Route path="/story-rules" element={<StoryRules />} />
+                                    <Route path="*" element={<Navigate to="/" replace />} />
+                                </>
+                            ) : (
+                                /* Normal story routes */
+                                <>
+                                    <Route path="/" element={<StoryHome onNavigate={handleNavigate} />} />
+                                    <Route path="/outlines" element={<OutlinePage onNavigate={handleNavigate} />} />
+                                    <Route path="/toc" element={<TableOfContents onSelectChapter={handleNavigateChapter} onNavigate={handleNavigate} />} />
+                                    <Route path="/chapter/:chapterId" element={<ChapterDetailWrapper onNavigate={handleNavigate} />} />
+                                    <Route path="/scene-outline" element={<SceneOutline onNavigate={handleNavigate} />} />
+                                    <Route path="/characters" element={<CharacterTab onNavigate={handleNavigate} />} />
+                                    <Route path="/settings" element={<SettingTab onNavigate={handleNavigate} />} />
+                                    <Route path="/abilities" element={<AbilityTab />} />
+                                    <Route path="/items" element={<ItemTab />} />
+                                    <Route path="/organizations" element={<OrganizationTab />} />
+                                    <Route path="/quests" element={<QuestTab />} />
+                                    <Route path="/timeline" element={<TimelineTab onNavigate={handleNavigate} />} />
+                                    <Route path="/plots" element={<PlotTab onNavigate={handleNavigate} />} />
+                                    <Route path="/references" element={<ReferencePanel onNavigate={handleNavigate} />} />
+                                    <Route path="/meta-rules" element={<MetaRulesTab />} />
+                                    <Route path="/worldbook" element={<WorldbookTab onNavigate={handleNavigate} />} />
+                                    <Route path="/checker" element={<ConsistencyChecker onNavigate={handleNavigate} />} />
+                                    <Route path="/story-rules" element={<StoryRules />} />
+                                    <Route path="/auto" element={<AutoWorkflowPanel />} />
+                                    <Route path="/research" element={<ResearchPanel />} />
+                                    <Route path="*" element={<Navigate to="/" replace />} />
+                                </>
+                            )}
                         </Routes>
                     </motion.div>
                 </AnimatePresence>

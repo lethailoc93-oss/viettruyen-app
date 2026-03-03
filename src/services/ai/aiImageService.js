@@ -255,6 +255,63 @@ export async function generateViaAIHorde(prompt, options = {}) {
 }
 
 /**
+ * Try generating image via the Local Backend Proxy (Cloud APIs like DALL-E)
+ * Requires API key stored in local storage
+ */
+export async function generateViaCloudAPI(prompt, options = {}) {
+    const { onProgress, timeoutMs = 60000, provider, apiKey, model, width = 1024, height = 1024 } = options;
+
+    // Fallback to local storage if not provided directly in options
+    const targetProvider = provider || localStorage.getItem('ai_story_cloud_image_provider');
+    const targetApiKey = apiKey || localStorage.getItem('ai_story_cloud_image_api_key');
+    const targetModel = model || localStorage.getItem('ai_story_cloud_image_model') || (targetProvider === 'openai' ? 'dall-e-3' : 'black-forest-labs/FLUX.1-schnell-Free');
+
+    if (!targetProvider || targetProvider === 'disabled' || !targetApiKey) {
+        return null; // Not configured
+    }
+
+    try {
+        onProgress?.(`🎨 Đang tạo ảnh qua Đám mây (${targetProvider.toUpperCase()})...`);
+
+        // Use Vite backend URL if available, otherwise assume same origin for prod
+        const backendBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        const url = `${backendBaseUrl}/api/extensions/cloud-image`;
+
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prompt: prompt.substring(0, 1000), // Cloud providers usually have limits
+                provider: targetProvider,
+                apiKey: targetApiKey,
+                model: targetModel,
+                width,
+                height
+            }),
+            signal: AbortSignal.timeout(timeoutMs)
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            console.warn('Cloud Image Gen failed:', err);
+            return null;
+        }
+
+        const data = await resp.json();
+        if (data.status === 'success' && data.url) {
+            // Most cloud APIs return a temporary URL, which is perfectly fine to display directly
+            return data.url;
+        }
+
+    } catch (err) {
+        console.warn('Cloud Image generation exception:', err);
+    }
+    return null;
+}
+
+/**
  * Helper: Load image URL using Image element (bypasses CORS)
  */
 function tryLoadImageUrl(url, timeoutMs = 90000) {
@@ -298,7 +355,19 @@ function tryLoadImageUrl(url, timeoutMs = 90000) {
 export async function generateImage(prompt, options = {}) {
     const { onProgress, model } = options;
 
-    // Try Perchance via Extension proxy (if available)
+    // 1. Try User's own Cloud API Key first (Highest Priority & Quality)
+    const cloudProvider = localStorage.getItem('ai_story_cloud_image_provider');
+    if (cloudProvider && cloudProvider !== 'disabled') {
+        const cloudResult = await generateViaCloudAPI(prompt, {
+            ...options,
+            onProgress
+        });
+        if (cloudResult) {
+            return { url: cloudResult, provider: 'cloud-api' };
+        }
+    }
+
+    // 2. Try Perchance via Extension proxy (if available)
     onProgress?.('🎨 Đang kiểm tra Perchance (Extension)...');
     const perchanceResult = await generateViaPerchanceProxy(prompt, {
         ...options,
@@ -308,7 +377,7 @@ export async function generateImage(prompt, options = {}) {
         return { url: perchanceResult, provider: 'perchance' };
     }
 
-    // Try Pollinations (fast, free, uses Flux/SD)
+    // 3. Try Pollinations (fast, free, uses Flux/SD)
     onProgress?.('🎨 Đang tạo ảnh qua Pollinations...');
     const pollinationsResult = await generateViaPollinations(prompt, { ...options, model });
     if (pollinationsResult) {

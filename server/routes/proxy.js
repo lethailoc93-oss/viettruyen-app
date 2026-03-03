@@ -1,19 +1,32 @@
 import express from 'express';
 import axios from 'axios';
+import { z } from 'zod';
+import { validate } from '../middleware/validation.js';
 
 const router = express.Router();
+
+// ═══════════════════════════════════════════════════
+// Schema
+// ═══════════════════════════════════════════════════
+
+const ProxyChatSchema = z.object({
+    targetUrl: z.url('targetUrl phải là URL hợp lệ'),
+    headers: z.record(z.string(), z.any()).optional().default({}),
+    payload: z.record(z.string(), z.any()).optional().default({}),
+    stream: z.boolean().optional().default(false),
+});
+
+// ═══════════════════════════════════════════════════
+// Route
+// ═══════════════════════════════════════════════════
 
 /**
  * Mảng Proxy xử lý tất cả HTTP POST Request từ Frontend 
  * Né lỗi CORS an toàn vì NodeJS server-to-server không bị chặn
  */
-router.post('/chat', async (req, res) => {
+router.post('/chat', validate(ProxyChatSchema), async (req, res) => {
     try {
         const { targetUrl, headers, payload, stream } = req.body;
-
-        if (!targetUrl) {
-            return res.status(400).json({ error: 'Missing targetUrl' });
-        }
 
         console.log(`[PROXY] Forwarding request to: ${targetUrl} (Stream: ${!!stream})`);
 

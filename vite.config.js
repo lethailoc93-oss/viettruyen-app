@@ -88,7 +88,8 @@ export default defineConfig({
     plugins: [react(), devCorsProxy()],
     base: './',
     build: {
-        outDir: 'dist'
+        outDir: 'dist',
+        sourcemap: true
     }
 })
 

@@ -1,0 +1,125 @@
+/* ================================================
+   Slash Commands — Popup & Styles
+   ================================================ */
+
+/* --- Popup container --- */
+.slash-popup {
+    position: absolute;
+    bottom: 100%;
+    left: 8px;
+    right: 8px;
+    margin-bottom: 6px;
+    background: var(--color-bg-secondary, #1a1e2e);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.4);
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 100;
+    padding: 4px;
+}
+
+.slash-popup::-webkit-scrollbar {
+    width: 4px;
+}
+
+.slash-popup::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+/* --- Header --- */
+.slash-popup-header {
+    padding: 6px 10px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--color-text-secondary, #666);
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 2px;
+}
+
+/* --- Command item --- */
+.slash-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.slash-item:hover,
+.slash-item.active {
+    background: rgba(124, 92, 255, 0.12);
+}
+
+.slash-item-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(124, 92, 255, 0.1);
+    color: #a78bfa;
+    flex-shrink: 0;
+    font-size: 13px;
+}
+
+.slash-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.slash-item-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary, #e0e0e0);
+}
+
+.slash-item-name span {
+    color: #a78bfa;
+    font-family: ui-monospace, monospace;
+}
+
+.slash-item-desc {
+    font-size: 11px;
+    color: var(--color-text-secondary, #888);
+    margin-top: 1px;
+}
+
+.slash-item-usage {
+    font-size: 10px;
+    color: var(--color-text-secondary, #555);
+    font-family: ui-monospace, monospace;
+    flex-shrink: 0;
+}
+
+/* --- No results --- */
+.slash-no-results {
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--color-text-secondary, #666);
+}
+
+/* --- System message styling in chat --- */
+.rp-system-msg {
+    display: flex;
+    justify-content: center;
+    padding: 4px 16px;
+}
+
+.rp-system-msg-inner {
+    background: rgba(124, 92, 255, 0.08);
+    border: 1px solid rgba(124, 92, 255, 0.15);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: #c4b5fd;
+    max-width: 80%;
+    line-height: 1.6;
+}

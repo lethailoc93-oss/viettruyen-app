@@ -15,7 +15,7 @@ export default function useChapterAI({
     getDirective, chapterOps, addCharacter, updateCharacter, settingOps, timelineOps,
     abilityOps, itemOps, organizationOps, updateCurrentInfo,
     extractSources, setChapterSources, setActiveTab,
-    plotProgressOps,
+    plotProgressOps, foreshadowingOps,
 }) {
     // AI dropdown state
     const [showAIDropdown, setShowAIDropdown] = useState(false);
@@ -384,15 +384,97 @@ export default function useChapterAI({
                     (scanResult.currentState ? 1 : 0);
 
                 if (totalChanges > 0) {
-                    // Store scan result for MVU Review Panel
-                    setPendingScan(scanResult);
-                    setWriteChapterStatus(`✅ Hoàn thành! 📊 ${totalChanges} thay đổi cần xem xét`);
+                    // Auto-Pilot: apply scan results automatically
+                    applyScanResult(scanResult);
+                    console.log(`🤖 Auto-Pilot: ${totalChanges} changes auto-applied`);
+                    setWriteChapterStatus(`✅ Hoàn thành! 📊 ${totalChanges} thay đổi đã tự động cập nhật`);
+
+                    // Auto-add foreshadowing seeds from scan
+                    if (scanResult.foreshadowingSeeds?.length > 0 && foreshadowingOps) {
+                        const existingFS = currentStory?.database?.foreshadowings || [];
+                        let addedCount = 0;
+                        scanResult.foreshadowingSeeds.forEach(seed => {
+                            const isDupe = existingFS.some(f =>
+                                f.hint?.toLowerCase() === seed.hint?.toLowerCase()
+                            );
+                            if (!isDupe) {
+                                foreshadowingOps.add({
+                                    hint: seed.hint,
+                                    targetEvent: seed.targetEvent || '',
+                                    confidence: seed.confidence || 'medium',
+                                    plantedChapter: chapter.order || 1,
+                                    status: 'active'
+                                });
+                                addedCount++;
+                            }
+                        });
+                        if (addedCount > 0) {
+                            console.log(`🌱 Auto-Pilot: ${addedCount} foreshadowing seeds auto-added`);
+                        }
+                    }
                 } else {
                     setWriteChapterStatus('✅ Hoàn thành viết chương!');
                 }
             } catch (scanErr) {
                 console.warn('Post-write scan failed:', scanErr);
                 setWriteChapterStatus('✅ Hoàn thành viết chương!');
+            }
+
+            // Step 3b (background): Auto-Consistency Check
+            try {
+                setWriteChapterStatus('🔎 Kiểm tra nhất quán...');
+                const consistencyKey = getNextKey();
+                const consistencyResult = await AIService.checkConsistency(
+                    consistencyKey, chapterText, currentStory, { model: selectedModel }
+                );
+                const issueCount = consistencyResult?.issues?.length || 0;
+                const warnCount = consistencyResult?.warnings?.length || 0;
+                if (issueCount > 0) {
+                    showToast(`⚠️ Phát hiện ${issueCount} mâu thuẫn tiềm ẩn! Kiểm tra console (F12).`, 'warning');
+                    console.warn('🔎 Consistency issues:', consistencyResult.issues);
+                    if (warnCount > 0) console.warn('🔎 Consistency warnings:', consistencyResult.warnings);
+                } else {
+                    console.log(`🔎 Consistency check passed ✅ (${warnCount} minor warnings)`);
+                }
+            } catch (consistencyErr) {
+                console.warn('🔎 Consistency check failed (non-critical):', consistencyErr.message);
+            }
+
+            // Step 3c (background): Style Drift Check
+            try {
+                const prevChapters = (currentStory?.database?.chapters || [])
+                    .filter(c => c.content && c.content.length > 200 && (c.order || 0) < (chapter.order || 0))
+                    .sort((a, b) => (b.order || 0) - (a.order || 0));
+                const prevContent = prevChapters[0]?.content;
+
+                if (prevContent) {
+                    setWriteChapterStatus('🎨 Kiểm tra phong cách...');
+                    const styleKey = getNextKey();
+                    const stylePrompt = `So sánh văn phong 2 đoạn văn bản dưới đây. Trả về JSON thuần (không markdown):
+{"driftLevel":"none|minor|major","details":"mô tả ngắn gọn sự khác biệt nếu có"}
+
+ĐOẠN CŨ (chương trước):
+${prevContent.slice(-1500)}
+
+ĐOẠN MỚI (chương vừa viết):
+${chapterText.slice(0, 1500)}
+
+Kiểm tra: giọng kể, nhịp câu, mức độ miêu tả, xưng hô, tone cảm xúc. Chỉ flag "major" nếu khác biệt RÕ RÀNG.`;
+
+                    const styleResult = await AIService.sendRawPrompt(
+                        styleKey, 'Bạn là chuyên gia phân tích văn phong. Chỉ trả JSON.', stylePrompt,
+                        { model: selectedModel, maxTokens: 256 }
+                    );
+                    const driftMatch = styleResult?.match(/"driftLevel"\s*:\s*"(major)"/);
+                    if (driftMatch) {
+                        showToast('🎨 Cảnh báo: Văn phong chương này có vẻ khác biệt so với chương trước!', 'warning');
+                        console.warn('🎨 Style drift detected:', styleResult);
+                    } else {
+                        console.log('🎨 Style consistency check passed ✅');
+                    }
+                }
+            } catch (styleErr) {
+                console.warn('🎨 Style check failed (non-critical):', styleErr.message);
             }
 
             // Step 4 (background): Auto-summarize chapter

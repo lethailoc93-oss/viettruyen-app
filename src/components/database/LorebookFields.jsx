@@ -143,6 +143,18 @@ export default function LorebookFields({ data, onChange }) {
                 </div>
 
                 <div className="form-group" style={{ flex: '1 1 30%' }}>
+                    <label className="form-label">Trạng thái (Status)</label>
+                    <select
+                        className="form-input"
+                        value={data._enabled === false ? 'false' : 'true'}
+                        onChange={e => onChange({ ...data, _enabled: e.target.value === 'true' })}
+                    >
+                        <option value="true">Bật (Active)</option>
+                        <option value="false">Tắt (Inactive / Optional)</option>
+                    </select>
+                </div>
+
+                <div className="form-group" style={{ flex: '1 1 30%' }}>
                     <label className="form-label">Độ ưu tiên (Priority)</label>
                     <select
                         className="form-input"

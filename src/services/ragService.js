@@ -35,6 +35,7 @@ import { buildGenreInstruction } from './genrePrompts';
 import { NSFW_INSTRUCTION } from './rag/nsfwInstruction';
 import { buildStyleInstruction } from './styleTemplates';
 import { buildDifficultyInstruction } from './storyDifficulty';
+import { buildPromptOptimization } from './promptOptimizer';
 
 
 // ================================================
@@ -453,6 +454,8 @@ ${genreInstruction}` +
         (story.antiCliches?.length > 0
             ? `\n\n══════════════════════════════════════════════════\n【CHỐNG SÁO MÒN — TÁC GIẢ YÊU CẦU TRÁNH】\n══════════════════════════════════════════════════\n${story.antiCliches.map((r, i) => `${i + 1}. ❌ ${r}`).join('\n')}`
             : '') +
+        // Prompt optimization (author profile + descriptor library)
+        buildPromptOptimization(story, '') +
         // Style template injection
         buildStyleInstruction(story) +
         // Difficulty/tone injection

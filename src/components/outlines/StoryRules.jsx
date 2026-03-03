@@ -8,6 +8,8 @@ import { buildGenreDefaults } from '../../services/genreDefaults';
 import { useApiKey } from '../../context/ApiKeyContext';
 import { AIService } from '../../services/aiService';
 import { parsePresetFile } from '../../utils/importExportUtils';
+import { AUTHOR_PROFILES } from '../../services/authorStyleProfiles';
+import { DESCRIPTOR_CATEGORIES } from '../../services/descriptorLibrary';
 
 const OUTPUT_PRESETS = [
     { label: 'Ngắn', value: 2048 },
@@ -311,6 +313,10 @@ export default React.memo(function StoryRules() {
     const [enableShowDontSmell, setEnableShowDontSmell] = useState(false);
     const [enableAntiGeminism, setEnableAntiGeminism] = useState(false);
     const [enableSlowBurn, setEnableSlowBurn] = useState(false);
+    const [authorProfile, setAuthorProfile] = useState('');
+    const [customAuthorInstruction, setCustomAuthorInstruction] = useState('');
+    const [descriptorCategories, setDescriptorCategories] = useState([]);
+    const [customAvoidListText, setCustomAvoidListText] = useState('');
     const [saveStatus, setSaveStatus] = useState('saved');
     const saveTimerRef = useRef(null);
 
@@ -334,6 +340,10 @@ export default React.memo(function StoryRules() {
         setEnableShowDontSmell(currentStory?.enableShowDontSmell || false);
         setEnableAntiGeminism(currentStory?.enableAntiGeminism || false);
         setEnableSlowBurn(currentStory?.enableSlowBurn || false);
+        setAuthorProfile(currentStory?.authorProfile || '');
+        setCustomAuthorInstruction(currentStory?.customAuthorInstruction || '');
+        setDescriptorCategories(currentStory?.descriptorCategories || []);
+        setCustomAvoidListText((currentStory?.customAvoidList || []).join('\n'));
         setSaveStatus('saved');
     }, [currentStory?.id]);
 
@@ -343,9 +353,11 @@ export default React.memo(function StoryRules() {
             prohibitions, globalDirective, maxOutputTokens, maxInputTokens,
             autoApplyPrinciples, allowNSFW, styleTemplate, difficulty,
             antiClicheText, customStyleInstruction, enableMontage, enableFlashback,
+            authorProfile, customAuthorInstruction, descriptorCategories, customAvoidListText,
             enableSensory, enableDynamicNpc, enableMultiPov, enableFetish, enableShowDontSmell, enableAntiGeminism, enableSlowBurn, ...overrides
         };
         const antiCliches = vals.antiClicheText.split('\n').map(l => l.trim()).filter(Boolean);
+        const customAvoidList = vals.customAvoidListText.split('\n').map(l => l.trim()).filter(Boolean);
         updateStoryRules({
             prohibitions: vals.prohibitions, globalDirective: vals.globalDirective,
             maxOutputTokens: vals.maxOutputTokens, maxInputTokens: vals.maxInputTokens,
@@ -356,7 +368,9 @@ export default React.memo(function StoryRules() {
             enableSensory: vals.enableSensory, enableDynamicNpc: vals.enableDynamicNpc,
             enableMultiPov: vals.enableMultiPov, enableFetish: vals.enableFetish,
             enableShowDontSmell: vals.enableShowDontSmell, enableAntiGeminism: vals.enableAntiGeminism,
-            enableSlowBurn: vals.enableSlowBurn
+            enableSlowBurn: vals.enableSlowBurn,
+            authorProfile: vals.authorProfile, customAuthorInstruction: vals.customAuthorInstruction,
+            descriptorCategories: vals.descriptorCategories, customAvoidList
         });
     };
 
@@ -389,6 +403,16 @@ export default React.memo(function StoryRules() {
     const handleShowDontSmellToggle = () => { const v = !enableShowDontSmell; setEnableShowDontSmell(v); triggerAutoSave({ enableShowDontSmell: v }); };
     const handleAntiGeminismToggle = () => { const v = !enableAntiGeminism; setEnableAntiGeminism(v); triggerAutoSave({ enableAntiGeminism: v }); };
     const handleSlowBurnToggle = () => { const v = !enableSlowBurn; setEnableSlowBurn(v); triggerAutoSave({ enableSlowBurn: v }); };
+    const handleAuthorProfileChange = (id) => { setAuthorProfile(id); triggerAutoSave({ authorProfile: id }); };
+    const handleCustomAuthorChange = (val) => { setCustomAuthorInstruction(val); triggerAutoSave({ customAuthorInstruction: val }); };
+    const handleDescriptorToggle = (catId) => {
+        const newCats = descriptorCategories.includes(catId)
+            ? descriptorCategories.filter(c => c !== catId)
+            : [...descriptorCategories, catId];
+        setDescriptorCategories(newCats);
+        triggerAutoSave({ descriptorCategories: newCats });
+    };
+    const handleCustomAvoidListChange = (val) => { setCustomAvoidListText(val); triggerAutoSave({ customAvoidListText: val }); };
 
     const { foreshadowingOps } = useStoryDispatch();
     const foreshadowings = currentStory?.database?.foreshadowings || [];
@@ -794,6 +818,186 @@ export default React.memo(function StoryRules() {
                         }}
                     />
                 )}
+            </div>
+
+            {/* Author Style Profile Selector */}
+            <div style={{
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: 'var(--radius-lg)',
+                padding: 'var(--space-md)',
+                marginBottom: 'var(--space-lg)'
+            }}>
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 'var(--space-sm)',
+                    marginBottom: 'var(--space-sm)', color: 'hsl(200, 80%, 55%)'
+                }}>
+                    <Sparkles size={18} />
+                    <h3 style={{ margin: 0, fontSize: 'var(--font-size-base)', fontWeight: 600 }}>
+                        ✍️ Hồ sơ tác giả
+                    </h3>
+                </div>
+                <p style={{
+                    color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-xs)',
+                    marginBottom: 'var(--space-md)', lineHeight: 1.4
+                }}>
+                    Chọn phong cách tác giả để AI viết theo. Mỗi hồ sơ chứa hướng dẫn chi tiết về cấu trúc câu, đối thoại, miêu tả, và từ vựng đặc trưng.
+                </p>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button
+                        onClick={() => handleAuthorProfileChange('')}
+                        style={{
+                            padding: '8px 14px', borderRadius: 'var(--radius-md)',
+                            border: !authorProfile ? '2px solid hsl(200, 80%, 55%)' : '1px solid var(--glass-border)',
+                            background: !authorProfile ? 'hsla(200, 80%, 55%, 0.12)' : 'var(--glass-bg)',
+                            color: !authorProfile ? 'hsl(200, 80%, 55%)' : 'var(--color-text-secondary)',
+                            cursor: 'pointer', fontSize: 'var(--font-size-xs)',
+                            fontWeight: !authorProfile ? 700 : 400, transition: 'all 0.15s ease'
+                        }}
+                    >
+                        🔄 Không chọn
+                    </button>
+                    {AUTHOR_PROFILES.map(p => (
+                        <button
+                            key={p.id}
+                            onClick={() => handleAuthorProfileChange(p.id)}
+                            title={`${p.name} — ${p.era}`}
+                            style={{
+                                padding: '8px 14px', borderRadius: 'var(--radius-md)',
+                                border: authorProfile === p.id ? '2px solid hsl(200, 80%, 55%)' : '1px solid var(--glass-border)',
+                                background: authorProfile === p.id ? 'hsla(200, 80%, 55%, 0.12)' : 'var(--glass-bg)',
+                                color: authorProfile === p.id ? 'hsl(200, 80%, 55%)' : 'var(--color-text-secondary)',
+                                cursor: 'pointer', fontSize: 'var(--font-size-xs)',
+                                fontWeight: authorProfile === p.id ? 700 : 400, transition: 'all 0.15s ease'
+                            }}
+                        >
+                            {p.icon} {p.name}
+                        </button>
+                    ))}
+                    <button
+                        onClick={() => handleAuthorProfileChange('custom')}
+                        title="Tự định nghĩa phong cách riêng"
+                        style={{
+                            padding: '8px 14px', borderRadius: 'var(--radius-md)',
+                            border: authorProfile === 'custom' ? '2px solid hsl(200, 80%, 55%)' : '1px solid var(--glass-border)',
+                            background: authorProfile === 'custom' ? 'hsla(200, 80%, 55%, 0.12)' : 'var(--glass-bg)',
+                            color: authorProfile === 'custom' ? 'hsl(200, 80%, 55%)' : 'var(--color-text-secondary)',
+                            cursor: 'pointer', fontSize: 'var(--font-size-xs)',
+                            fontWeight: authorProfile === 'custom' ? 700 : 400, transition: 'all 0.15s ease'
+                        }}
+                    >
+                        ✏️ Tùy chỉnh
+                    </button>
+                </div>
+                {authorProfile && authorProfile !== 'custom' && (() => {
+                    const p = AUTHOR_PROFILES.find(a => a.id === authorProfile);
+                    if (!p) return null;
+                    return (
+                        <div style={{
+                            marginTop: 'var(--space-sm)', padding: 'var(--space-sm)',
+                            background: 'hsla(200, 80%, 55%, 0.06)', borderRadius: 'var(--radius-md)',
+                            fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.6
+                        }}>
+                            <strong>{p.icon} {p.name}</strong> — {p.era}<br />
+                            📝 Câu: {p.sentenceStyle}<br />
+                            💬 Đối thoại: {p.dialogueStyle?.slice(0, 80)}...
+                        </div>
+                    );
+                })()}
+                {authorProfile === 'custom' && (
+                    <textarea
+                        className="editor-textarea"
+                        value={customAuthorInstruction}
+                        onChange={(e) => handleCustomAuthorChange(e.target.value)}
+                        placeholder="Mô tả phong cách tác giả tùy chỉnh của bạn...\n\nVí dụ:\n- Câu ngắn, nhịp nhanh\n- Đối thoại sắc bén, ít mô tả\n- Kết thúc chương bằng cliffhanger"
+                        style={{
+                            minHeight: '80px', marginTop: 'var(--space-sm)',
+                            fontFamily: 'var(--font-family-primary)', fontSize: 'var(--font-size-sm)',
+                            borderColor: 'hsl(200, 60%, 40%, 0.3)'
+                        }}
+                    />
+                )}
+            </div>
+
+            {/* Descriptor Optimization */}
+            <div style={{
+                background: 'linear-gradient(135deg, hsla(330, 70%, 50%, 0.08), hsla(30, 90%, 55%, 0.08))',
+                border: '1px solid hsla(330, 70%, 50%, 0.25)',
+                borderRadius: 'var(--radius-lg)',
+                padding: 'var(--space-md)',
+                marginBottom: 'var(--space-lg)'
+            }}>
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 'var(--space-sm)',
+                    marginBottom: 'var(--space-sm)', color: 'hsl(330, 70%, 60%)'
+                }}>
+                    <Sparkles size={18} />
+                    <h3 style={{ margin: 0, fontSize: 'var(--font-size-base)', fontWeight: 600 }}>
+                        🎯 Tối ưu mô tả (Descriptor Optimizer)
+                    </h3>
+                </div>
+                <p style={{
+                    color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-xs)',
+                    marginBottom: 'var(--space-md)', lineHeight: 1.4
+                }}>
+                    Bật các hạng mục để AI nhận <strong>hướng dẫn mô tả đa dạng</strong> + danh sách sáo ngữ cần tránh. Hệ thống tự động phát hiện loại cảnh đang viết và inject instruction phù hợp.
+                </p>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: 'var(--space-md)' }}>
+                    {DESCRIPTOR_CATEGORIES.map(cat => (
+                        <button
+                            key={cat.id}
+                            onClick={() => handleDescriptorToggle(cat.id)}
+                            title={cat.clicheList.slice(0, 3).map(c => `"${c}"`).join(', ') + '...'}
+                            style={{
+                                padding: '8px 14px', borderRadius: 'var(--radius-md)',
+                                border: descriptorCategories.includes(cat.id)
+                                    ? '2px solid hsl(330, 70%, 60%)'
+                                    : '1px solid var(--glass-border)',
+                                background: descriptorCategories.includes(cat.id)
+                                    ? 'hsla(330, 70%, 60%, 0.12)'
+                                    : 'var(--glass-bg)',
+                                color: descriptorCategories.includes(cat.id)
+                                    ? 'hsl(330, 70%, 60%)'
+                                    : 'var(--color-text-secondary)',
+                                cursor: 'pointer', fontSize: 'var(--font-size-xs)',
+                                fontWeight: descriptorCategories.includes(cat.id) ? 700 : 400,
+                                transition: 'all 0.15s ease'
+                            }}
+                        >
+                            {cat.icon} {cat.label.split(' — ')[0]}
+                        </button>
+                    ))}
+                </div>
+                {descriptorCategories.length > 0 && (
+                    <div style={{
+                        padding: 'var(--space-sm)', background: 'hsla(330, 70%, 60%, 0.06)',
+                        borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-xs)',
+                        color: 'var(--color-text-secondary)', lineHeight: 1.5
+                    }}>
+                        ✅ Đang bật <strong>{descriptorCategories.length}</strong> hạng mục. AI sẽ nhận hướng dẫn mô tả đa dạng + danh sách cụm từ cần tránh cho mỗi hạng mục.
+                    </div>
+                )}
+
+                {/* Custom Avoid List */}
+                <div style={{ marginTop: 'var(--space-md)' }}>
+                    <label style={{
+                        fontSize: 'var(--font-size-xs)', fontWeight: 600,
+                        color: 'hsl(330, 70%, 60%)', display: 'block', marginBottom: '4px'
+                    }}>
+                        🚫 Cụm từ tùy chỉnh cần tránh
+                    </label>
+                    <textarea
+                        className="editor-textarea"
+                        value={customAvoidListText}
+                        onChange={(e) => handleCustomAvoidListChange(e.target.value)}
+                        placeholder={'Mỗi dòng một cụm từ AI không nên dùng...\n\nVí dụ:\ntrắng như tuyết\nnhũ hoa hồng\nký ức ùa về'}
+                        style={{
+                            minHeight: '60px', fontFamily: 'var(--font-family-primary)',
+                            fontSize: 'var(--font-size-sm)',
+                            borderColor: 'hsl(330, 60%, 40%, 0.3)'
+                        }}
+                    />
+                </div>
             </div>
 
             {/* Difficulty Selector */}

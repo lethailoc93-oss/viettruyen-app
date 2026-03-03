@@ -12,6 +12,7 @@ import { runWritingPipeline } from './aiWritingPipeline';
 import { ResearchService } from '../researchService';
 import { IdbStorage } from '../../utils/idbStorage';
 import { postProcessVietnamese } from '../postProcessing';
+import { scanChekhovsGuns } from '../chekhovTracker';
 
 /**
  * Continue writing the story with full RAG context
@@ -421,7 +422,17 @@ ${characterRoster}
 ${worldRules}
 
 ${narrativeFlow}
-
+${(() => {
+                // Chekhov's Gun reminders — remind AI about forgotten elements
+                const chekhovAlerts = scanChekhovsGuns(story, chapter.id);
+                const urgentAlerts = chekhovAlerts.filter(a => a.urgency !== 'low').slice(0, 5);
+                if (urgentAlerts.length > 0) {
+                    return '\n<CHEKHOV_REMINDERS>\n' +
+                        urgentAlerts.map(a => `${a.icon} ${a.suggestion}`).join('\n') +
+                        '\nCÂN NHẮC lồng ghép tự nhiên 1-2 yếu tố trên vào dàn ý nếu phù hợp.\n</CHEKHOV_REMINDERS>\n';
+                }
+                return '';
+            })()}
 YÊU CẦU OUTPUT:
 - Viết bằng tiếng Việt
 - Tuân thủ format: BƯỚC 0 (Logic Audit) → PHÂN TÍCH TÌNH HUỐNG → KẾ HOẠCH TRIỂN KHAI (Hook → Development → Highlight → Beat End) → GHI CHÚ CHO WRITER AI

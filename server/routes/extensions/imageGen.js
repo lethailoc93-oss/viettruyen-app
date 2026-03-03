@@ -1,21 +1,34 @@
 import express from 'express';
 import axios from 'axios';
+import { z } from 'zod';
+import { validate } from '../../middleware/validation.js';
 
 const router = express.Router();
+
+// ═══════════════════════════════════════════════════
+// Schema
+// ═══════════════════════════════════════════════════
+
+const ImageGenSchema = z.object({
+    prompt: z.string().min(1, 'Prompt không được để trống'),
+    negativePrompt: z.string().optional().default('bad quality, blurry, mutated, deformed'),
+    serverUrl: z.string().optional().default('http://127.0.0.1:8188'),
+    provider: z.enum(['comfyui']).optional().default('comfyui'),
+});
+
+// ═══════════════════════════════════════════════════
+// Route
+// ═══════════════════════════════════════════════════
 
 /**
  * Extension: Image Generation (ComfyUI / A1111)
  * Nhận Prompt từ Frontend, gọi tới hệ thống vẽ ảnh local
  */
-router.post('/', async (req, res) => {
+router.post('/', validate(ImageGenSchema), async (req, res) => {
     try {
-        const { prompt, negativePrompt, serverUrl, provider = 'comfyui' } = req.body;
+        const { prompt, negativePrompt, serverUrl, provider } = req.body;
 
-        if (!prompt) {
-            return res.status(400).json({ error: 'Missing prompt for image generation' });
-        }
-
-        const backendUrl = serverUrl || 'http://127.0.0.1:8188'; // Default ComfyUI port
+        const backendUrl = serverUrl;
 
         console.log(`[EXT: IMAGE] Requesting image for: "${prompt.substring(0, 50)}..." from ${backendUrl}`);
 
@@ -52,7 +65,7 @@ router.post('/', async (req, res) => {
                         "class_type": "CLIPTextEncode"
                     },
                     "7": {
-                        "inputs": { "text": negativePrompt || "bad quality, blurry, mutated, deformed", "clip": ["4", 1] },
+                        "inputs": { "text": negativePrompt, "clip": ["4", 1] },
                         "class_type": "CLIPTextEncode"
                     },
                     "8": {

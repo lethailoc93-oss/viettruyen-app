@@ -80,6 +80,9 @@ export default function ApiKeyModal({ onClose }) {
         provider, setProvider, customBaseUrl, setCustomBaseUrl, wsConnected,
         workerProvider, setWorkerProvider, workerBaseUrl, setWorkerBaseUrl,
         workerApiKey, setWorkerApiKey, workerModel, setWorkerModel,
+        cloudImageProvider, setCloudImageProvider,
+        cloudImageApiKey, setCloudImageApiKey,
+        cloudImageModel, setCloudImageModel,
         generationConfig, setGenerationConfig
     } = useApiKey();
     const isWsUrl = customBaseUrl && (customBaseUrl.startsWith('ws://') || customBaseUrl.startsWith('wss://'));
@@ -1005,6 +1008,68 @@ export default function ApiKeyModal({ onClose }) {
 
                                         <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)', padding: 'var(--space-xs) 0' }}>
                                             Lưu ý: Nếu điền sai hoặc AI Phụ tá hết hạn ngạch / sập, hệ thống sẽ tự động chuyển việc lại cho Main AI (Gemini).
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* ============ CLOUD IMAGE GENERATION (DALL-E, TOGETHER) ============ */}
+                            <div style={{ marginTop: 'var(--space-xl)', padding: 'var(--space-md)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                                        <Bot size={18} className="text-primary" />
+                                        <h4 style={{ margin: 0, fontSize: 'var(--font-size-md)' }}>Sinh ảnh Đám Mây (Cloud Image Gen)</h4>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                                            {cloudImageProvider !== 'disabled' ? 'Đang BẬT' : 'TẮT'}
+                                        </span>
+                                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
+                                            <input type="checkbox" checked={cloudImageProvider !== 'disabled'}
+                                                onChange={(e) => setCloudImageProvider(e.target.checked ? 'openai' : 'disabled')}
+                                                style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} />
+                                            <div style={{
+                                                width: '36px', height: '20px', borderRadius: '10px',
+                                                background: cloudImageProvider !== 'disabled' ? 'var(--color-primary)' : 'var(--color-bg-tertiary)',
+                                                transition: 'all 0.3s ease', position: 'relative'
+                                            }}>
+                                                <div style={{
+                                                    width: '16px', height: '16px', borderRadius: '50%', background: 'white',
+                                                    position: 'absolute', top: '2px', left: cloudImageProvider !== 'disabled' ? '18px' : '2px',
+                                                    transition: 'all 0.3s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                                                }} />
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                                <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-md)', lineHeight: 1.5 }}>
+                                    Sử dụng API Key của riêng bạn để sinh ảnh qua proxy Backend (bảo mật, chống CORS và lách kiểm duyệt). Hỗ trợ OpenAI DALL-E 3 và TogetherAI (Flux).
+                                </p>
+
+                                {cloudImageProvider !== 'disabled' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', animation: 'fadeIn 0.3s ease' }}>
+                                        <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+                                            <button
+                                                onClick={() => { setCloudImageProvider('openai'); setCloudImageModel('dall-e-3'); }}
+                                                style={{ flex: 1, minWidth: '100px', padding: 'var(--space-sm)', border: `1px solid ${cloudImageProvider === 'openai' ? 'var(--color-primary)' : 'var(--glass-border)'}`, borderRadius: 'var(--radius-md)', background: cloudImageProvider === 'openai' ? 'rgba(139, 92, 246, 0.15)' : 'transparent', color: cloudImageProvider === 'openai' ? 'var(--color-primary)' : 'var(--color-text-primary)', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }}>
+                                                OpenAI (DALL-E 3)
+                                            </button>
+                                            <button
+                                                onClick={() => { setCloudImageProvider('together'); setCloudImageModel('black-forest-labs/FLUX.1-schnell-Free'); }}
+                                                style={{ flex: 1, minWidth: '100px', padding: 'var(--space-sm)', border: `1px solid ${cloudImageProvider === 'together' ? 'var(--color-primary)' : 'var(--glass-border)'}`, borderRadius: 'var(--radius-md)', background: cloudImageProvider === 'together' ? 'rgba(139, 92, 246, 0.15)' : 'transparent', color: cloudImageProvider === 'together' ? 'var(--color-primary)' : 'var(--color-text-primary)', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }}>
+                                                TogetherAI (Flux)
+                                            </button>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-sm)' }}>
+                                            <div style={{ gridColumn: '1 / -1' }}>
+                                                <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: '4px', display: 'block' }}>Model Name <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                                                <input type="text" className="form-input" style={{ fontSize: 'var(--font-size-sm)' }} value={cloudImageModel} onChange={e => setCloudImageModel(e.target.value)} placeholder={cloudImageProvider === 'openai' ? "dall-e-3" : "black-forest-labs/FLUX.1-schnell-Free"} />
+                                            </div>
+                                            <div style={{ gridColumn: '1 / -1' }}>
+                                                <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: '4px', display: 'block' }}>API Key (Bắt buộc) <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                                                <input type="password" className="form-input" style={{ fontSize: 'var(--font-size-sm)' }} value={cloudImageApiKey} onChange={e => setCloudImageApiKey(e.target.value)} placeholder={cloudImageProvider === 'openai' ? "sk-proj-..." : "Nhập API Key TogetherAI..."} />
+                                            </div>
                                         </div>
                                     </div>
                                 )}
